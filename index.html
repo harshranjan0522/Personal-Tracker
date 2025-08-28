@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Daily Tracker — Minimal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --bg: #0b0f0c;             /* near-black */
+      --panel: #0f1511;          /* card background */
+      --muted: #b6c2b9;          /* soft text */
+      --text: #e9f4ec;           /* main text */
+      --brand: #1ed760;          /* green accent */
+      --brand-2: #19b350;        /* darker green */
+      --danger: #ff5871;         /* deletion / warn */
+      --ring: rgba(30,215,96,0.25);
+      --grad: radial-gradient(1200px 800px at 10% -10%, rgba(30,215,96,0.10), transparent 60%),
+              radial-gradient(800px 600px at 90% 10%, rgba(30,215,96,0.08), transparent 60%),
+              linear-gradient(180deg, #0b0f0c 0%, #0a0d0b 100%);
+    }
+
+    *{ box-sizing: border-box; }
+    html, body{ height:100%; }
+    body{
+      margin:0;
+      font-family:'Inter',system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      background: var(--grad);
+      color: var(--text);
+    }
+
+    .container{
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 16px 64px;
+    }
+
+    header{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px; margin-bottom:18px;
+    }
+
+    .title{
+      font-size: clamp(18px, 2.4vw, 28px);
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      display:flex; align-items:center; gap:10px;
+    }
+    .title .dot{ width:10px; height:10px; border-radius:50%; background: var(--brand); box-shadow:0 0 18px var(--brand); }
+
+    .tabs{
+      display:flex; gap:8px; flex-wrap:wrap;
+      background: rgba(255,255,255,0.02);
+      padding:6px; border-radius:14px; border:1px solid rgba(255,255,255,0.06);
+    }
+    .tab{ cursor:pointer; border:none; background:transparent; color:var(--muted); padding:10px 14px; border-radius:10px; font-weight:600; }
+    .tab[aria-selected="true"]{ background:linear-gradient(180deg, rgba(30,215,96,0.15), rgba(30,215,96,0.05)); color:var(--text); border:1px solid rgba(30,215,96,0.25); }
+
+    .grid{
+      display:grid; gap:16px; grid-template-columns: 1fr; align-items:start;
+    }
+    @media(min-width: 960px){
+      .grid{ grid-template-columns: 1.1fr 1fr; }
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00));
+      border:1px solid rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding:16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+      backdrop-filter: blur(6px);
+    }
+
+    h2{ font-size: 16px; font-weight:700; margin:0 0 12px; color:#eaf7ef; }
+    .subtle{ color:var(--muted); font-size: 13px; }
+
+    .row{ display:flex; gap:10px; flex-wrap:wrap; }
+
+    input, select, textarea{
+      width:100%;
+      padding:12px 12px;
+      background: #0e1311;
+      color: var(--text);
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      outline:none;
+      transition: border .15s ease, box-shadow .15s ease;
+    }
+    input:focus, select:focus, textarea:focus{
+      border-color: var(--brand-2);
+      box-shadow: 0 0 0 4px var(--ring);
+    }
+
+    .btn{
+      appearance:none; border:none; cursor:pointer; font-weight:700;
+      padding:10px 14px; border-radius: 12px;
+      background: linear-gradient(180deg, var(--brand), var(--brand-2));
+      color:#06290f;
+      box-shadow: 0 6px 18px rgba(30,215,96,0.28);
+    }
+    .btn.secondary{ background: transparent; color: var(--text); border:1px solid rgba(255,255,255,0.12); box-shadow:none; }
+    .btn.danger{ background: linear-gradient(180deg, #ff8597, #ff5871); color:#2b0006; box-shadow:0 6px 18px rgba(255,88,113,0.25); }
+    .btn.small{ padding:8px 10px; font-size: 12px; }
+
+    .list{ display:flex; flex-direction:column; gap:10px; }
+
+    .item{
+      display:grid; gap:10px; grid-template-columns: 1fr auto;
+      align-items:center; padding:12px; border-radius:14px;
+      border:1px solid rgba(255,255,255,0.06);
+      background: #0f1511;
+    }
+    .item .meta{ display:flex; gap:10px; flex-wrap:wrap; color:var(--muted); font-size:12px; }
+    .pill{ font-size:11px; padding:4px 8px; border-radius:999px; border:1px solid rgba(255,255,255,0.10); }
+    .pill.high{ border-color: rgba(255, 80, 80, 0.4); color:#ff9090; }
+    .pill.medium{ border-color: rgba(255,200,80,0.4); color:#ffe18a; }
+    .pill.low{ border-color: rgba(120,255,120,0.35); color:#b1ffb1; }
+    .strike{ text-decoration: line-through; opacity:0.7 }
+
+    .sections{ display:grid; gap:16px; }
+
+    .muted-divider{ height:1px; background:linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent); margin:10px 0; }
+
+    .charts{ display:grid; gap:16px; grid-template-columns:1fr; }
+    @media(min-width: 900px){ .charts{ grid-template-columns: 1fr 1fr; } }
+
+    footer{ margin-top:28px; color:var(--muted); font-size:12px; text-align:center; opacity:0.9; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="title"><span class="dot"></span> Daily Tracker</div>
+      <div class="tabs" role="tablist">
+        <button id="tabTasks" class="tab" role="tab" aria-selected="true">Tasks</button>
+        <button id="tabExpenses" class="tab" role="tab" aria-selected="false">Expenses</button>
+      </div>
+    </header>
+
+    <!-- TASKS VIEW -->
+    <section id="tasksView" class="grid" aria-labelledby="tabTasks">
+      <!-- Create / Edit Task -->
+      <div class="card">
+        <h2>Create Task</h2>
+        <div class="subtle" id="taskHint">Add title, time, deadline & priority. Tasks listed by priority for <span id="todaySpan"></span>.</div>
+        <div class="muted-divider"></div>
+        <form id="taskForm" class="sections">
+          <input type="hidden" id="taskId" />
+          <div class="row">
+            <input id="taskTitle" placeholder="Task title *" required />
+          </div>
+          <div class="row">
+            <input id="taskTime" type="time" required />
+            <input id="taskDeadline" type="datetime-local" />
+            <select id="taskPriority" required>
+              <option value="High">High</option>
+              <option value="Medium" selected>Medium</option>
+              <option value="Low">Low</option>
+            </select>
+          </div>
+          <textarea id="taskNotes" rows="3" placeholder="Notes (optional)"></textarea>
+          <div class="row">
+            <button class="btn" type="submit" id="taskSubmitBtn">Add Task</button>
+            <button class="btn secondary" type="button" id="taskResetBtn" hidden>Cancel Edit</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Active / Done Tasks -->
+      <div class="card">
+        <h2>Today’s Tasks</h2>
+        <div class="subtle">Sorted by priority → time. Toggle complete or edit anytime.</div>
+        <div class="muted-divider"></div>
+
+        <div class="sections">
+          <div>
+            <h3 style="margin:0 0 8px; font-size:14px">Active</h3>
+            <div id="activeTasks" class="list"></div>
+          </div>
+          <div>
+            <h3 style="margin:10px 0 8px; font-size:14px">Done</h3>
+            <div id="doneTasks" class="list"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- EXPENSES VIEW -->
+    <section id="expensesView" class="grid" aria-labelledby="tabExpenses" style="display:none">
+      <div class="card">
+        <h2>Add Expense</h2>
+        <div class="subtle">Track credits & debits. Graphs update automatically.</div>
+        <div class="muted-divider"></div>
+        <form id="expenseForm" class="sections">
+          <input type="hidden" id="expenseId" />
+          <div class="row">
+            <input id="expenseDate" type="date" required />
+            <select id="expenseType" required>
+              <option value="Credit">Credit</option>
+              <option value="Debit" selected>Debit</option>
+            </select>
+            <input id="expenseAmount" type="number" step="0.01" min="0" placeholder="Amount *" required />
+          </div>
+          <input id="expenseDesc" placeholder="Description (e.g., groceries, salary)" />
+          <div class="row">
+            <button class="btn" type="submit" id="expenseSubmitBtn">Add Expense</button>
+            <button class="btn secondary" type="button" id="expenseResetBtn" hidden>Cancel Edit</button>
+          </div>
+        </form>
+
+        <div class="muted-divider"></div>
+        <h3 style="margin:0 0 8px; font-size:14px">Entries</h3>
+        <div id="expenseList" class="list"></div>
+      </div>
+
+      <div class="card">
+        <h2>Insights</h2>
+        <div class="subtle">Day-wise (this month) & Month-wise (this year) credit vs debit.</div>
+        <div class="muted-divider"></div>
+        <div class="charts">
+          <canvas id="dayChart" height="240"></canvas>
+          <canvas id="monthChart" height="240"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Built for focus — minimal, responsive, and fast. Data stays in your browser (localStorage).
+    </footer>
+  </div>
+
+<script>
+// ===== Utilities =====
+const $ = (q) => document.querySelector(q);
+const $$ = (q) => Array.from(document.querySelectorAll(q));
+const todayISO = () => new Date().toISOString().slice(0,10);
+const fmtTime = (t) => t || "—";
+const fmtDateTime = (s) => s ? new Date(s).toLocaleString() : "—";
+
+const PRIORITY_ORDER = { High: 3, Medium: 2, Low: 1 };
+
+// ===== State (localStorage) =====
+const LS = {
+  tasksKey: 'dt_tasks_v1',
+  expensesKey: 'dt_expenses_v1',
+  lastSeenKey: 'dt_last_seen',
+  loadTasks(){ return JSON.parse(localStorage.getItem(this.tasksKey) || '[]'); },
+  saveTasks(list){ localStorage.setItem(this.tasksKey, JSON.stringify(list)); },
+  loadExpenses(){ return JSON.parse(localStorage.getItem(this.expensesKey) || '[]'); },
+  saveExpenses(list){ localStorage.setItem(this.expensesKey, JSON.stringify(list)); },
+  touch(){ localStorage.setItem(this.lastSeenKey, todayISO()); }
+};
+
+function ensureDailyRefresh(){
+  const last = localStorage.getItem(LS.lastSeenKey);
+  const today = todayISO();
+  if(last !== today){
+    // We keep data, but the UI naturally filters to today where relevant.
+    // Hook to perform any auto-resets if you want in future.
+    LS.touch();
+  }
+}
+
+// ===== Tabs =====
+const tabTasks = $('#tabTasks');
+const tabExpenses = $('#tabExpenses');
+const tasksView = $('#tasksView');
+const expensesView = $('#expensesView');
+
+function switchTab(which){
+  const isTasks = which === 'tasks';
+  tabTasks.setAttribute('aria-selected', isTasks);
+  tabExpenses.setAttribute('aria-selected', !isTasks);
+  tasksView.style.display = isTasks ? '' : 'none';
+  expensesView.style.display = isTasks ? 'none' : '';
+}
+
+tabTasks.addEventListener('click', () => switchTab('tasks'));
+ tabExpenses.addEventListener('click', () => switchTab('expenses'));
+
+// ===== Tasks =====
+const taskForm = $('#taskForm');
+const taskId = $('#taskId');
+const taskTitle = $('#taskTitle');
+const taskTime = $('#taskTime');
+const taskDeadline = $('#taskDeadline');
+const taskPriority = $('#taskPriority');
+const taskNotes = $('#taskNotes');
+const taskSubmitBtn = $('#taskSubmitBtn');
+const taskResetBtn = $('#taskResetBtn');
+const activeTasksEl = $('#activeTasks');
+const doneTasksEl = $('#doneTasks');
+
+function renderTasks(){
+  const tasks = LS.loadTasks();
+  const today = todayISO();
+  const todays = tasks.filter(t => t.date === today);
+
+  const sortFn = (a,b) => {
+    const p = PRIORITY_ORDER[b.priority] - PRIORITY_ORDER[a.priority];
+    if(p !== 0) return p;
+    return (a.time||'').localeCompare(b.time||'');
+  };
+
+  const active = todays.filter(t => !t.completed).sort(sortFn);
+  const done = todays.filter(t => t.completed).sort(sortFn);
+
+  activeTasksEl.innerHTML = active.map(TaskItem).join('') || emptyState('No active tasks yet.');
+  doneTasksEl.innerHTML = done.map(TaskItem).join('') || emptyState('No completed tasks yet.');
+}
+
+function TaskItem(t){
+  const pri = t.priority.toLowerCase();
+  return `
+    <div class="item" data-id="${t.id}">
+      <div>
+        <div style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
+          <div style="font-weight:600; ${t.completed ? 'opacity:0.8' : ''}" class="${t.completed ? 'strike' : ''}">${escapeHtml(t.title)}</div>
+          <span class="pill ${pri}">${t.priority}</span>
+        </div>
+        <div class="meta">
+          <span>Time: <b>${fmtTime(t.time)}</b></span>
+          <span>Deadline: <b>${fmtDateTime(t.deadline)}</b></span>
+        </div>
+        ${t.notes ? `<div class="subtle" style="margin-top:6px">${escapeHtml(t.notes)}</div>` : ''}
+      </div>
+      <div class="row" style="justify-content:flex-end;">
+        <button class="btn small secondary" onclick="toggleComplete('${t.id}')">${t.completed?'Unmark':'Done'}</button>
+        <button class="btn small secondary" onclick="editTask('${t.id}')">Edit</button>
+      </div>
+    </div>
+  `;
+}
+
+function emptyState(text){
+  return `<div class="subtle" style="padding:10px; text-align:center;">${text}</div>`;
+}
+
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"]+/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+
+function resetTaskForm(){
+  taskId.value = '';
+  taskTitle.value = '';
+  taskTime.value = '';
+  taskDeadline.value = '';
+  taskPriority.value = 'Medium';
+  taskNotes.value = '';
+  taskSubmitBtn.textContent = 'Add Task';
+  taskResetBtn.hidden = true;
+}
+
+function editTask(id){
+  const t = LS.loadTasks().find(x => x.id === id);
+  if(!t) return;
+  taskId.value = t.id;
+  taskTitle.value = t.title;
+  taskTime.value = t.time || '';
+  taskDeadline.value = t.deadline || '';
+  taskPriority.value = t.priority;
+  taskNotes.value = t.notes || '';
+  taskSubmitBtn.textContent = 'Update Task';
+  taskResetBtn.hidden = false;
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function toggleComplete(id){
+  const tasks = LS.loadTasks();
+  const idx = tasks.findIndex(t => t.id === id);
+  if(idx>-1){ tasks[idx].completed = !tasks[idx].completed; LS.saveTasks(tasks); renderTasks(); }
+}
+
+function upsertTask(e){
+  e.preventDefault();
+  const id = taskId.value || crypto.randomUUID();
+  const nowDate = todayISO();
+  const t = {
+    id,
+    title: taskTitle.value.trim(),
+    time: taskTime.value,
+    deadline: taskDeadline.value,
+    priority: taskPriority.value,
+    notes: taskNotes.value.trim(),
+    completed: false,
+    date: nowDate
+  };
+  if(!t.title){ alert('Please enter a task title.'); return; }
+  const tasks = LS.loadTasks();
+  const idx = tasks.findIndex(x => x.id === id);
+  if(idx>-1){ // update
+    const existing = tasks[idx];
+    tasks[idx] = { ...existing, ...t, completed: existing.completed, date: existing.date };
+  } else { tasks.push(t); }
+  LS.saveTasks(tasks);
+  resetTaskForm();
+  renderTasks();
+}
+
+// ===== Expenses =====
+const expenseForm = $('#expenseForm');
+const expenseId = $('#expenseId');
+const expenseDate = $('#expenseDate');
+const expenseType = $('#expenseType');
+const expenseAmount = $('#expenseAmount');
+const expenseDesc = $('#expenseDesc');
+const expenseSubmitBtn = $('#expenseSubmitBtn');
+const expenseResetBtn = $('#expenseResetBtn');
+const expenseList = $('#expenseList');
+
+let dayChart, monthChart;
+
+function resetExpenseForm(){
+  expenseId.value = '';
+  expenseDate.value = todayISO();
+  expenseType.value = 'Debit';
+  expenseAmount.value = '';
+  expenseDesc.value = '';
+  expenseSubmitBtn.textContent = 'Add Expense';
+  expenseResetBtn.hidden = true;
+}
+
+function editExpense(id){
+  const e = LS.loadExpenses().find(x => x.id === id);
+  if(!e) return;
+  expenseId.value = e.id;
+  expenseDate.value = e.date;
+  expenseType.value = e.type;
+  expenseAmount.value = e.amount;
+  expenseDesc.value = e.desc || '';
+  expenseSubmitBtn.textContent = 'Update Expense';
+  expenseResetBtn.hidden = false;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function deleteExpense(id){
+  if(!confirm('Delete this entry?')) return;
+  const list = LS.loadExpenses().filter(x => x.id !== id);
+  LS.saveExpenses(list);
+  renderExpenses();
+}
+
+function upsertExpense(e){
+  e.preventDefault();
+  const id = expenseId.value || crypto.randomUUID();
+  const entry = {
+    id,
+    date: expenseDate.value || todayISO(),
+    type: expenseType.value,
+    amount: parseFloat(expenseAmount.value || '0'),
+    desc: expenseDesc.value.trim()
+  };
+  if(!(entry.amount > 0)) { alert('Enter a valid amount.'); return; }
+  const list = LS.loadExpenses();
+  const idx = list.findIndex(x => x.id === id);
+  if(idx>-1){ list[idx] = entry; } else { list.push(entry); }
+  LS.saveExpenses(list);
+  resetExpenseForm();
+  renderExpenses();
+}
+
+function renderExpenses(){
+  const list = LS.loadExpenses().sort((a,b)=> a.date.localeCompare(b.date));
+  expenseList.innerHTML = list.map(ExpenseItem).join('') || emptyState('No expenses yet.');
+  drawCharts(list);
+}
+
+function ExpenseItem(e){
+  return `
+    <div class="item" data-id="${e.id}">
+      <div>
+        <div style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
+          <div style="font-weight:600">${escapeHtml(e.desc || (e.type==='Credit'?'Credit':'Debit'))}</div>
+          <span class="pill ${e.type==='Credit'?'low':'high'}">${e.type}</span>
+        </div>
+        <div class="meta">
+          <span>Date: <b>${new Date(e.date).toLocaleDateString()}</b></span>
+          <span>Amount: <b>${e.amount.toFixed(2)}</b></span>
+        </div>
+      </div>
+      <div class="row" style="justify-content:flex-end;">
+        <button class="btn small secondary" onclick="editExpense('${e.id}')">Edit</button>
+        <button class="btn small danger" onclick="deleteExpense('${e.id}')">Delete</button>
+      </div>
+    </div>
+  `;
+}
+
+// ===== Charts =====
+function drawCharts(list){
+  // Day-wise for current month
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth(); // 0-indexed
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+
+  const dayLabels = Array.from({length: daysInMonth}, (_,i)=> String(i+1).padStart(2,'0'));
+  const dayCredit = Array(daysInMonth).fill(0);
+  const dayDebit = Array(daysInMonth).fill(0);
+
+  list.filter(e=>{
+    const d = new Date(e.date);
+    return d.getFullYear()===year && d.getMonth()===month;
+  }).forEach(e=>{
+    const d = new Date(e.date).getDate();
+    if(e.type==='Credit') dayCredit[d-1]+= e.amount; else dayDebit[d-1]+= e.amount;
+  });
+
+  const dayCtx = document.getElementById('dayChart');
+  if(dayChart) dayChart.destroy();
+  dayChart = new Chart(dayCtx, {
+    type:'bar',
+    data:{ labels: dayLabels, datasets:[
+      { label:'Credit (This Month)', data: dayCredit },
+      { label:'Debit (This Month)', data: dayDebit }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, scales:{ x:{ grid:{ color:'rgba(255,255,255,0.05)' } }, y:{ grid:{ color:'rgba(255,255,255,0.05)' } } }, plugins:{ legend:{ labels:{ color:'#d8f3dd' } } } }
+  });
+
+  // Month-wise for current year
+  const mLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const mCredit = Array(12).fill(0);
+  const mDebit = Array(12).fill(0);
+
+  list.filter(e=> new Date(e.date).getFullYear()===year).forEach(e=>{
+    const m = new Date(e.date).getMonth();
+    if(e.type==='Credit') mCredit[m]+= e.amount; else mDebit[m]+= e.amount;
+  });
+
+  const monthCtx = document.getElementById('monthChart');
+  if(monthChart) monthChart.destroy();
+  monthChart = new Chart(monthCtx, {
+    type:'line',
+    data:{ labels: mLabels, datasets:[
+      { label:'Credit (YTD)', data: mCredit },
+      { label:'Debit (YTD)', data: mDebit }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, scales:{ x:{ grid:{ color:'rgba(255,255,255,0.05)' } }, y:{ grid:{ color:'rgba(255,255,255,0.05)' } } }, plugins:{ legend:{ labels:{ color:'#d8f3dd' } } } }
+  });
+}
+
+// ===== Init =====
+function init(){
+  ensureDailyRefresh();
+  $('#todaySpan').textContent = new Date().toLocaleDateString();
+  resetTaskForm();
+  resetExpenseForm();
+  renderTasks();
+  renderExpenses();
+
+  taskForm.addEventListener('submit', upsertTask);
+  taskResetBtn.addEventListener('click', resetTaskForm);
+
+  expenseForm.addEventListener('submit', upsertExpense);
+  expenseResetBtn.addEventListener('click', resetExpenseForm);
+}
+
+init();
+</script>
+</body>
+</html>
